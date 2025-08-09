@@ -50,7 +50,7 @@ export default function Dashboard() {
                   <p className="text-2xl font-bold" style={{color:'#1976d2'}}>
                     {landlordSol !== null ? `${landlordSol.toFixed(2)} SOL` : '–'}
                   </p>
-                  <p className="text-xs mt-1">Daily burns happen automatically at 00:00 UTC.</p>
+                  <p className="text-xs mt-1">Daily burns by the slumlord happen automatically at 4:20 UTC.</p>
                 </div>
                 {/* Tenant Relief Fund Widget */}
                 <div className="card" style={{border:'2px solid #222',boxShadow:'2px 2px 0 #222'}}>
