@@ -1,14 +1,8 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
-
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-): Promise<void> {
+export default async function handler(req, res) {
   try {
     const address = String(req.query.address || '');
     if (!address) {
-      res.status(400).json({ error: 'Missing address parameter' });
-      return;
+      return res.status(400).json({ error: 'Missing address parameter' });
     }
 
     const rpcUrl = `https://mainnet.helius-rpc.com/?api-key=${process.env.HELIUS_API_KEY}`;
@@ -28,17 +22,17 @@ export default async function handler(
       throw new Error(`Helius RPC error: ${response.statusText}`);
     }
 
-    const data: any = await response.json();
-    if (data?.error) {
+    const data = await response.json();
+    if (data && data.error) {
       throw new Error(data.error.message || 'Unknown RPC error');
     }
 
-    const lamports: number = data?.result?.value ?? 0;
+    const lamports = (data?.result?.value ?? 0);
     const sol = lamports / 1e9;
 
-    res.status(200).json({ address, sol });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    return res.status(200).json({ address, sol });
+  } catch (err) {
+    return res.status(500).json({ error: err.message || String(err) });
   }
 }
 
