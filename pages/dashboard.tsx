@@ -1,6 +1,12 @@
 import Head from 'next/head';
 import { useEffect, useState } from 'react';
 
+// TODO: replace these with your real addresses when ready
+const LANDLORD_VAULT_ADDRESS = '7vPHGVBpRe4DFih7CkZLzuVGEkWzdDnXTBWYADXfW9EB';
+const TENANT_RELIEF_OWNER = 'GWsSBGcHMdXSLaaqKeRDkP3JcE4oT8oY4gG1ZMTiTLCt';
+// This should be the token mint address for $RENT (once you deploy it)
+const RENT_TOKEN_MINT = 'EnterYourRentTokenMintHere';
+
 /**
  * Dashboard (Tenant Portal) for $RENT holders.
  *
@@ -18,17 +24,46 @@ export default function Dashboard() {
   const [burnHistory, setBurnHistory] = useState<any[]>([]);
   const [evictionRisk, setEvictionRisk] = useState<number>(0);
   const [rentPaid, setRentPaid] = useState<number>(0);
+  const [txs, setTxs] = useState<{ signature: string; timestamp: number | null; type?: string | null }[]>([]);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
 
   useEffect(() => {
-    // TODO: Replace this mock with real API calls
-    // Example: fetch landlord vault balance
-    // const response = await fetch(...);
-    // setLandlordSol(...);
-    // setTenantRelief(...);
-    // setBurnHistory(...);
-    // setEvictionRisk(...);
-    // setRentPaid(...);
-  }, []);
+  async function load() {
+    try {
+      setErrorMsg(null);
+
+      // 1) Landlord Vault SOL balance
+      if (LANDLORD_VAULT_ADDRESS) {
+        const r1 = await fetch(`/api/sol-balance?address=${LANDLORD_VAULT_ADDRESS}`);
+        const d1 = await r1.json();
+        if (!r1.ok) throw new Error(d1.error || 'SOL balance fetch failed');
+        setLandlordSol(d1.sol);
+      }
+
+      // 2) TRF $RENT balance — only fetch when you have a real mint set
+      if (TENANT_RELIEF_OWNER && RENT_TOKEN_MINT !== 'EnterYourRentTokenMintHere') {
+        const r2 = await fetch(`/api/token-balance?owner=${TENANT_RELIEF_OWNER}&mint=${RENT_TOKEN_MINT}`);
+        const d2 = await r2.json();
+        if (!r2.ok) throw new Error(d2.error || 'Token balance fetch failed');
+        setTenantRelief(d2.uiAmount); // human-readable amount
+      }
+
+      // 3) Recent transactions for Landlord Vault
+      if (LANDLORD_VAULT_ADDRESS) {
+        const r3 = await fetch(`/api/txs?address=${LANDLORD_VAULT_ADDRESS}&limit=10`);
+        const d3 = await r3.json();
+        if (!r3.ok) throw new Error(d3.error || 'Tx fetch failed');
+        setTxs(d3.txs || []);
+      }
+    } catch (e: any) {
+      setErrorMsg(e.message);
+    }
+  }
+
+  load();
+}, []);
+
 
   return (
     <>
@@ -56,7 +91,7 @@ export default function Dashboard() {
                 <div className="card" style={{border:'2px solid #222',boxShadow:'2px 2px 0 #222'}}>
                   <h2 style={{background:'#e3e3e3',borderBottom:'2px solid #b0b0b0',padding:'0.5rem 1rem',margin:'-1.5rem -1.5rem 1rem -1.5rem',borderTopLeftRadius:'6px',borderTopRightRadius:'6px',color:'#1565c0',fontWeight:'bold',fontSize:'1.2rem'}}>Tenant Relief Fund ($RENT)</h2>
                   <p className="text-2xl font-bold" style={{color:'#1976d2'}}>
-                    {tenantRelief !== null ? `${(tenantRelief / 1e6).toFixed(2)}M` : '–'}
+                    {tenantRelief !== null ? tenantRelief.toLocaleString() : '–'}
                   </p>
                   <p className="text-xs mt-1">Next airdrop in: <span className="font-medium">6d 12h</span></p>
                 </div>
@@ -80,6 +115,31 @@ export default function Dashboard() {
                     </tbody>
                   </table>
                 </div>
+                <div className="card md:col-span-2" style={{border:'2px solid #222',boxShadow:'2px 2px 0 #222'}}>
+  <h2 style={{background:'#e3e3e3',borderBottom:'2px solid #b0b0b0',padding:'0.5rem 1rem',margin:'-1.5rem -1.5rem 1rem -1.5rem',borderTopLeftRadius:'6px',borderTopRightRadius:'6px',color:'#1565c0',fontWeight:'bold',fontSize:'1.2rem'}}>Recent Vault Transactions</h2>
+  {txs.length === 0 ? (
+    <p className="text-sm text-gray-600 px-4 pb-4">No data yet (or invalid address).</p>
+  ) : (
+    <ul className="px-4 pb-4 space-y-2">
+      {txs.map((t) => (
+        <li key={t.signature}>
+          <a
+            href={`https://solscan.io/tx/${t.signature}`}
+            target="_blank"
+            rel="noreferrer"
+            className="text-blue-600 hover:underline"
+          >
+            {t.signature.slice(0, 8)}…{t.signature.slice(-8)}
+          </a>
+          <span className="text-gray-600">
+            {' '}— {t.timestamp ? new Date(t.timestamp * 1000).toLocaleString() : 'pending'}
+          </span>
+          {t.type ? <span className="text-gray-500"> ({t.type})</span> : null}
+        </li>
+      ))}
+    </ul>
+  )}
+</div>
                 {/* Eviction Risk Meter */}
                 <div className="card" style={{border:'2px solid #222',boxShadow:'2px 2px 0 #222'}}>
                   <h2 style={{background:'#e3e3e3',borderBottom:'2px solid #b0b0b0',padding:'0.5rem 1rem',margin:'-1.5rem -1.5rem 1rem -1.5rem',borderTopLeftRadius:'6px',borderTopRightRadius:'6px',color:'#1565c0',fontWeight:'bold',fontSize:'1.2rem'}}>Eviction Risk Meter</h2>
